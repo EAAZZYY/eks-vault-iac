@@ -1,0 +1,25 @@
+controller:
+  serviceType: LoadBalancer
+  servicePort: 8080  # Default Jenkins HTTP port
+  annotations:
+    # AWS LoadBalancer annotation for public access; change to true if you need it internal
+    service.beta.kubernetes.io/aws-load-balancer-internal: "false"
+
+  # Security settings (optional, adjust as needed)
+  adminUser: admin
+  adminPassword: changeMePassword
+
+  # Storage (Persistent Volume Claim for Jenkins data)
+  persistence:
+    enabled: true
+    size: 8Gi  # Adjust size based on your needs
+    storageClass: jenkins_storage  # Storage class for EBS; change if using a different class
+
+  # Resource limits and requests for the Jenkins controller pod
+  resources:
+    requests:
+      cpu: "500m"
+      memory: "512Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1024Mi"

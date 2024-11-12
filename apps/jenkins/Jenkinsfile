@@ -1,0 +1,34 @@
+pipeline {
+    agent any
+    environment {
+        KUBECONFIG = "/var/run/secrets/kubernetes.io/serviceaccount/kubeconfig"
+    }
+    stages {
+        stage('Run Kubernetes Command') {
+            steps {
+                script {
+                    // Example kubectl command to check nodes
+                    sh "kubectl get nodes"
+                }
+            }
+        }
+        stage('Run Vault Init and Unseal') {
+            steps {
+                script {
+                    // Run your Vault commands using kubectl exec
+                    sh """
+                        kubectl -n vault exec vault-0 -- vault operator init -key-shares=1 -key-threshold=1 -format=json > cluster-keys.json
+                        export VAULT_UNSEAL_KEY=\$(jq -r ".unseal_keys_b64[]" cluster-keys.json)
+                        kubectl -n vault exec vault-0 -- vault operator unseal \$VAULT_UNSEAL_KEY
+                        export CLUSTER_ROOT_TOKEN=\$(jq -r ".root_token" cluster-keys.json)
+                        kubectl -n vault exec vault-0 -- vault login \$CLUSTER_ROOT_TOKEN
+                        kubectl -n vault exec vault-1 -- vault operator raft join http://vault-0.vault-internal:8200
+                        kubectl -n vault exec vault-1 -- vault operator unseal \$VAULT_UNSEAL_KEY
+                        kubectl -n vault exec vault-2 -- vault operator raft join http://vault-0.vault-internal:8200
+                        kubectl -n vault exec vault-2 -- vault operator unseal \$VAULT_UNSEAL_KEY
+                    """
+                }
+            }
+        }
+    }
+}
